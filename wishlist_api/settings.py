@@ -38,7 +38,21 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'items',
+    'rest_framework',
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    )
+}
+
+# from datetime import timedelta
+
+# SIMPLE_JWT = {
+#     'REFRESH_TOKEN_LIFETIME': timedelta(days=15),
+#     'ROTATE_REFRESH_TOKENS': True,
+#     'BLACKLIST_AFTER_ROTATION': True}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

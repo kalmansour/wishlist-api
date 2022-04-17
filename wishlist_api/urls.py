@@ -18,17 +18,22 @@ from django.urls import path
 from items import views
 from django.conf import settings
 from django.conf.urls.static import static
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
 
-    path('items/list/', views.item_list, name='item-list'),
-    path('items/detail/<int:item_id>/', views.item_detail, name='item-detail'),
+    path('items/list/', views.ItemListView.as_view(), name='item-list'),
+    path('items/detail/<int:item_id>/', views.ItemDetailView.as_view(), name='item-detail'),
     path('items/wishlist/', views.wishlist, name='wishlist' ),
 
-    path('user/register/', views.user_register, name='user-register'),
-    path('user/login/', views.user_login, name='user-login'),
-    path('user/logout/', views.user_logout, name='user-logout'),
+    path('user/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('token/refresh/', TokenRefreshView.as_view(), name="token-refresh"),
+    path('user/register/', views.UserRegister.as_view(), name='user-register'),
+    path('logout/', views.LogoutView.as_view(), name='auth_logout'),
 
     path('items/<int:item_id>/favorite/', views.item_favorite, name='item-favorite'),
 ]

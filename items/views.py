@@ -1,69 +1,53 @@
 from django.shortcuts import render, redirect
 from items.models import Item, FavoriteItem
-from .forms import UserRegisterForm, UserLoginForm
-from django.contrib.auth import login, logout, authenticate
+from .serializers import UserRegisterSerialzer, ItemListSerializer, ItemDetailSerializer
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView
+from rest_framework.views import APIView
+from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.filters import SearchFilter, OrderingFilter
+from .permissions import IsItemOwnerOrStaff
 
-# Create your views here.
-def item_list(request):
-    items = Item.objects.all()
-    query = request.GET.get('q')
-    if query:
-        items = items.filter(name__contains=query)
-    if request.user.is_authenticated:
-        favorite_list = request.user.favoriteitem_set.all().values_list('item', flat=True)
-    context = {
-        "items": items,
-        "favorite_list": favorite_list
-    }
-    return render(request, 'item_list.html', context)
+class ItemListView(ListAPIView):
+    queryset = Item.objects.all()
+    serializer_class = ItemListSerializer
+    filter_backends = [SearchFilter, OrderingFilter]
+    search_fields = ['name', 'description']
+    permission_classes = [AllowAny]
+    
+class ItemDetailView(RetrieveAPIView):
+    queryset = Item.objects.all()
+    serializer_class = ItemDetailSerializer
+    lookup_field = 'id'
+    lookup_url_kwarg = 'item_id'
+    permission_classes = [IsItemOwnerOrStaff]
 
-def item_detail(request, item_id):
-    context = {
-        "item": Item.objects.get(id=item_id)
-    }
-    return render(request, 'item_detail.html', context)
+class UserRegister(CreateAPIView):
+    serializer_class = UserRegisterSerialzer
 
-def user_register(request):
-    register_form = UserRegisterForm()
-    if request.method == "POST":
-        register_form = UserRegisterForm(request.POST)
-        if register_form.is_valid():
-            user = register_form.save(commit=False)
-            user.set_password(user.password)
-            user.save()
-            login(request, user)
-            return redirect('item-list')
-    context = {
-        "register_form": register_form
-    }
-    return render(request, 'user_register.html', context)
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
 
-def user_login(request):
-    login_form = UserLoginForm()
-    if request.method == "POST":
-        login_form = UserLoginForm(request.POST)
-        if login_form.is_valid():
-            username = login_form.cleaned_data['username']
-            password = login_form.cleaned_data['password']
-            authenticated_user = authenticate(username=username, password=password)
-            if authenticated_user:
-                login(request, authenticated_user)
-                return redirect('item-list')
-    context = {
-        "login_form": login_form
-    }
-    return render(request, 'user_login.html', context)
+    def post(self, request):
+        try:
+            refresh_token = request.data["refresh_token"]
+            token = RefreshToken(refresh_token)
+            token.blacklist()
 
-def user_logout(request):
-    logout(request)
+            return Response(status=status.HTTP_205_RESET_CONTENT)
+        except Exception as e:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
 
-    return redirect('item-list')
-
+@csrf_exempt
 def item_favorite(request, item_id):
     item_object = Item.objects.get(id=item_id)
     if request.user.is_anonymous:
-        return redirent('user-login')
+        return redirect('user-login')
     
     favorite, created = FavoriteItem.objects.get_or_create(user=request.user, item=item_object)
     if created:
@@ -77,6 +61,7 @@ def item_favorite(request, item_id):
     }
     return JsonResponse(response, safe=False)
 
+@csrf_exempt
 def wishlist(request):
     wishlist = []
     items = Item.objects.all()
